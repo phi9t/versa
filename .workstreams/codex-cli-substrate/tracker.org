@@ -1,0 +1,137 @@
+#+TITLE: Versa Workstream Tracker — codex-cli-substrate
+#+AUTHOR: Versa
+#+DATE: 2026-05-25
+#+STARTUP: overview indent
+#+OPTIONS: toc:2
+
+* Workstream metadata
+| Key            | Value                                      |
+|----------------+--------------------------------------------|
+| Slug           | codex-cli-substrate                        |
+| Design doc     | [[file:design.md][design.md]]              |
+| RFC (SDK v2)   | [[file:../../docs/rfc/0001-codex-app-server-sdk.md][RFC 0001]] |
+| v1 backend     | codex exec CLI only                        |
+| SDK code       | OUT OF SCOPE (RFC only)                    |
+
+* DONE WS-001 Codex CLI substrate (v1)
+:PROPERTIES:
+:ID: ws-001
+:END:
+
+** DONE WS-001.0 Workstream scaffolding
+:PROPERTIES:
+:ID: ws-001-0
+:END:
+- [X] Create =.workstreams/codex-cli-substrate/=
+- [X] Write =design.md=
+- [X] Write =tracker.org=
+
+** DONE WS-001.1 Strict JSON schema helper
+:PROPERTIES:
+:ID: ws-001-1
+:EFFORT: 2h
+:END:
+
+*** Task description
+Implement =src/versa/llm/schema.py= with =pydantic_model_to_codex_schema()= for =codex exec --output-schema=.
+
+*** Prompt (implementer)
+#+BEGIN_EXAMPLE
+Implement pydantic_model_to_codex_schema(model: type[BaseModel]) -> dict for Versa.
+Input: TurnDelta and nested FactPatch, AssumptionPatch.
+Output must satisfy Codex strict JSON Schema.
+Add unit tests in tests/test_codex_schema.py.
+#+END_EXAMPLE
+
+*** Acceptance criteria
+- [X] =tests/test_codex_schema.py= passes
+- [X] Root schema: type object, additionalProperties false, no $ref at root
+- [X] TurnDelta.model_validate accepts fixture JSON
+
+** DONE WS-001.2 CodexCLIClient subprocess adapter
+:PROPERTIES:
+:ID: ws-001-2
+:EFFORT: 4h
+:END:
+
+*** Codex invocation template
+#+BEGIN_SRC shell
+codex exec --ephemeral --skip-git-repo-check -s read-only \
+  -o /tmp/versa-out.txt \
+  --output-schema /tmp/schema.json \
+  "Versa LLM call."
+# stdin: full prompt
+#+END_SRC
+
+*** Extractor prompt (via build_extractor_prompt)
+#+BEGIN_EXAMPLE
+Extract only information explicitly stated by the user in the latest message.
+Return JSON matching TurnDelta. Every fact patch needs evidence_quote from user text.
+Do not treat prior assistant messages as facts.
+#+END_EXAMPLE
+
+*** Solver prompt (via build_solver_context)
+#+BEGIN_EXAMPLE
+You are solving from a clean authoritative task state.
+Use only authoritative facts and verified tool results.
+Do not rely on previous assistant drafts.
+Produce the smallest complete answer satisfying the state.
+#+END_EXAMPLE
+
+*** Acceptance criteria
+- [X] generate() returns -o file text on exit 0
+- [X] generate_json() validates with Pydantic
+- [X] Non-zero exit raises CodexExecError
+- [X] test_codex_cli_parsing.py asserts --ephemeral, --output-schema in argv
+
+** DONE WS-001.3 Factory + dual LLM wiring
+:PROPERTIES:
+:ID: ws-001-3
+:END:
+
+*** Acceptance criteria
+- [X] make_codex_clients() returns extractor + solver
+- [X] AgentRuntime uses extractor_llm / solver_llm
+- [X] MockLLM tests still pass
+
+** DONE WS-001.4 versa CLI
+:PROPERTIES:
+:ID: ws-001-4
+:END:
+
+*** Acceptance criteria
+- [X] versa doctor | chat | turn
+- [X] pyproject.scripts entry
+- [X] README codex login docs
+
+** DONE WS-001.5 RFC 0001
+:PROPERTIES:
+:ID: ws-001-5
+:END:
+
+*** Acceptance criteria
+- [X] docs/rfc/0001-codex-app-server-sdk.md complete
+- [X] README links RFC
+
+** DONE WS-001.6 Tests
+:PROPERTIES:
+:ID: ws-001-6
+:END:
+
+*** Acceptance criteria
+- [X] pytest -q -m "not integration" green (18 passed)
+- [X] integration marked optional
+
+** DONE WS-001.7 Documentation pass
+- [X] README + design.md + tracker.org
+
+* BACKLOG (v2 SDK)
+- [ ] CodexAppServerClient
+- [ ] VERSA_CODEX_BACKEND=cli|sdk
+- [ ] Streaming versa chat
+
+* DONE log
+| Timestamp  | Task     | Notes |
+|------------+----------+-------|
+| 2026-05-25 | WS-001.0 | workstream created |
+| 2026-05-25 | WS-001   | v1 implemented, 18 unit tests |

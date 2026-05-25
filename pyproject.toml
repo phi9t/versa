@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "versa"
+version = "0.1.0"
+description = "Conversation state compiler between raw chat transcripts and solver models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+versa = "versa.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+postgres = [
+    "asyncpg>=0.29",
+    "psycopg[binary]>=3.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/versa"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "integration: requires codex CLI and auth",
+]
