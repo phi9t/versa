@@ -7,16 +7,38 @@ name = "versa"
 version = "0.1.0"
 description = "Conversation state compiler between raw chat transcripts and solver models"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
+authors = [{ name = "Philip Yang" }]
+keywords = ["llm", "agents", "state-machine", "codex", "conversation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/phi9t/versa"
+Repository = "https://github.com/phi9t/versa"
+Issues = "https://github.com/phi9t/versa/issues"
+Changelog = "https://github.com/phi9t/versa/blob/main/CHANGELOG.md"
 
 [project.scripts]
 versa = "versa.cli:main"
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
 ]
@@ -34,4 +56,14 @@ pythonpath = ["."]
 testpaths = ["tests"]
 markers = [
     "integration: requires codex CLI and auth",
+]
+filterwarnings = [
+    "ignore::pytest.PytestUnknownMarkWarning",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.workstreams",
+    "/.venv",
+    "/.pytest_cache",
 ]

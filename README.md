@@ -20,6 +20,22 @@ TaskState         authoritative user-grounded state
 ArtifactStore     untrusted drafts until verification
 ```
 
+## Install
+
+From a [GitHub release](https://github.com/phi9t/versa/releases) wheel:
+
+```bash
+pip install https://github.com/phi9t/versa/releases/download/v0.1.0/versa-0.1.0-py3-none-any.whl
+```
+
+From source (development):
+
+```bash
+git clone https://github.com/phi9t/versa.git
+cd versa
+pip install -e ".[dev]"
+```
+
 ## Quick start (Codex CLI)
 
 ```bash
@@ -94,3 +110,9 @@ Engineering design and task tracker: [.workstreams/codex-cli-substrate/](.workst
 ## Postgres
 
 Apply `src/versa/store/schema.sql` for event-sourced persistence.
+
+## Releases
+
+CI runs on every push to `main` and on pull requests. Pushing a semver tag (`v0.1.0`) builds wheel/sdist artifacts and publishes a GitHub Release.
+
+See [docs/RELEASING.md](docs/RELEASING.md) for the maintainer checklist.

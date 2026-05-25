@@ -6,6 +6,7 @@ import sys
 
 from pydantic import ValidationError
 
+from versa import __version__
 from versa.llm.codex_cli import CodexExecError, codex_is_ready
 from versa.llm.factory import make_codex_clients
 from versa.orchestrator import AgentRuntime
@@ -16,6 +17,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="versa",
         description="Versa conversation state compiler (Codex CLI substrate)",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
