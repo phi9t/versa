@@ -67,6 +67,28 @@ Proceed with synthesis.
 
 The verified document appears in **Document**. **Export** provides deterministic markdown without another LLM call.
 
+## Terminal (TUI)
+
+Same gather controller as the web UI, in-process (no HTTP):
+
+```bash
+pip install -e ".[dev,tui]"
+mkdir -p .versa
+versa gather --db .versa/state.db --task-id my-spec
+```
+
+Offline with MockLLM:
+
+```bash
+versa gather --mock --db .versa/state.db --task-id my-spec
+```
+
+**Tabs** (keys `1`–`6`): Chat, Facts, Slots, Questions, Document, Export.
+
+**Input**: type at the bottom and press Enter (same turn loop as web chat).
+
+**Export**: `Ctrl+E` loads markdown; in the Export tab press `m` or `j` for markdown/JSON.
+
 ## E2E tests
 
 Requires Codex auth locally (`codex login`, `versa doctor`):
@@ -84,11 +106,26 @@ Playwright starts the prod stack: `versa serve --db ui/e2e/.test-state.db` (real
 VERSA_E2E_MOCK=1 npm run test:e2e
 ```
 
+Full conversational workflow only (gather → synthesize → document → export):
+
+```bash
+npm run test:e2e:full              # real Codex (~1–2 min)
+VERSA_E2E_MOCK=1 npm run test:e2e:mock:full   # offline (~5 s)
+```
+
+Preserve the full Codex session for offline review (SQLite + markdown + snapshot):
+
+```bash
+npm run test:e2e:full:preserve
+# → .versa/e2e-full-codex-review.db
+# → .versa/e2e-full-codex-review/{REVIEW.md,requirements.md,snapshot.json,state.db}
+```
+
 ## Architecture note
 
 - **Model** — Python domain (`TaskState`, reducer, policy, verifier)
-- **Controller** — FastAPI + `SessionService` (`src/versa/api/`)
-- **View** — React app (`ui/src/`) — never mutates facts directly
+- **Controller** — `GatherSession` / `SessionService` (`src/versa/gather/`, `src/versa/api/`)
+- **View** — React app (`ui/src/`) or Textual TUI (`src/versa/gather/tui/`) — never mutates facts directly
 - **Store** — SQLite file via `--db` / `VERSA_DB_PATH` (default in-memory without flag)
 
 ## CLI alternatives

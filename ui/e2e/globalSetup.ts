@@ -7,11 +7,31 @@ export const repoRoot = path.join(__dirname, '..', '..')
 
 export const E2E_PORT = process.env.VERSA_E2E_PORT ?? '8765'
 export const E2E_RESTART_PORT = String(Number(E2E_PORT) + 1)
-export const E2E_DB =
-  process.env.VERSA_E2E_DB ?? path.join(repoRoot, 'ui', 'e2e', '.test-state.db')
-export const E2E_RESTART_DB =
-  process.env.VERSA_E2E_RESTART_DB ?? path.join(repoRoot, 'ui', 'e2e', '.restart-test-state.db')
+function resolveDbPath(raw: string | undefined, defaultRelative: string): string {
+  if (!raw) {
+    return path.join(repoRoot, defaultRelative)
+  }
+  if (path.isAbsolute(raw)) {
+    return raw
+  }
+  const normalized = raw.replace(/^\.\.\//, '')
+  return path.join(repoRoot, normalized)
+}
+
+export const E2E_DB = resolveDbPath(
+  process.env.VERSA_E2E_DB,
+  path.join('ui', 'e2e', '.test-state.db'),
+)
+export const E2E_RESTART_DB = resolveDbPath(
+  process.env.VERSA_E2E_RESTART_DB,
+  path.join('ui', 'e2e', '.restart-test-state.db'),
+)
 export const E2E_USE_MOCK = process.env.VERSA_E2E_MOCK === '1'
+export const E2E_PRESERVE = process.env.VERSA_E2E_PRESERVE === '1'
+export const E2E_PRESERVE_RESUME = process.env.VERSA_E2E_PRESERVE_RESUME === '1'
+export const E2E_FULL_REVIEW_TASK = 'e2e-full-codex'
+export const E2E_FULL_REVIEW_DIR = path.join(repoRoot, '.versa', 'e2e-full-codex-review')
+export const E2E_FULL_REVIEW_DB = path.join(repoRoot, '.versa', 'e2e-full-codex-review.db')
 export const TURN_TIMEOUT_MS = 120_000
 
 export function serveArgs(port: string = E2E_PORT, dbPath: string = E2E_DB): string[] {
@@ -25,7 +45,9 @@ function shellQuote(value: string): string {
 }
 
 export function serveCommand(port: string = E2E_PORT, dbPath: string = E2E_DB): string {
-  const clean = `rm -f ${shellQuote(dbPath)} ${shellQuote(`${dbPath}-wal`)} ${shellQuote(`${dbPath}-shm`)} 2>/dev/null;`
+  const clean = E2E_PRESERVE_RESUME
+    ? ''
+    : `rm -f ${shellQuote(dbPath)} ${shellQuote(`${dbPath}-wal`)} ${shellQuote(`${dbPath}-shm`)} 2>/dev/null;`
   return `${clean} ${['versa', ...serveArgs(port, dbPath)].join(' ')}`
 }
 

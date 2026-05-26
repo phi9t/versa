@@ -9,11 +9,9 @@ from pydantic import ValidationError
 
 from versa import __version__
 from versa.api.session_service import SessionService
+from versa.gather.factory import make_gather_runtime_from_args, make_gather_session
 from versa.llm.codex_cli import CodexExecError, codex_is_ready
-from versa.llm.factory import make_codex_clients
-from versa.llm.mock import MockLLM
 from versa.orchestrator import AgentRuntime
-from versa.store.factory import make_store, resolve_db_path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -50,6 +48,14 @@ def main(argv: list[str] | None = None) -> int:
     serve_p.add_argument("--mock", action="store_true", help="Use MockLLM instead of Codex")
     _add_turn_args(serve_p)
 
+    gather_p = sub.add_parser(
+        "gather",
+        help="Interactive requirements gather TUI",
+        parents=[db_parent],
+    )
+    gather_p.add_argument("--mock", action="store_true", help="Use MockLLM instead of Codex")
+    _add_turn_args(gather_p)
+
     for name in ("state", "export"):
         p = sub.add_parser(name, help=f"Show session {name}", parents=[db_parent])
         p.add_argument("--task-id", default="default", help="Task identifier")
@@ -71,6 +77,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "serve":
         return cmd_serve(args)
 
+    if args.command == "gather":
+        return cmd_gather(args)
+
     if args.command == "state":
         return asyncio.run(cmd_state(args))
 
@@ -87,19 +96,6 @@ def _add_turn_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--profile", default=None)
 
 
-def _build_runtime(args: argparse.Namespace, *, mock: bool = False) -> AgentRuntime:
-    store = make_store(resolve_db_path(args.db))
-    if mock:
-        llm = MockLLM()
-        return AgentRuntime(llm, store, extractor_llm=llm)
-    extractor, solver = make_codex_clients(
-        repo_root=getattr(args, "repo", None),
-        model=getattr(args, "model", None),
-        profile=getattr(args, "profile", None),
-    )
-    return AgentRuntime(solver, store, extractor_llm=extractor)
-
-
 def _print_llm_error(exc: BaseException) -> None:
     print(f"error: {exc}", file=sys.stderr)
     if isinstance(exc, CodexExecError) and exc.stderr:
@@ -107,7 +103,9 @@ def _print_llm_error(exc: BaseException) -> None:
 
 
 async def cmd_chat(args: argparse.Namespace) -> int:
-    runtime = _build_runtime(args)
+    from versa.store.factory import resolve_db_path
+
+    runtime = make_gather_runtime_from_args(args)
     db = resolve_db_path(args.db)
     persistence = f"db={db}" if db else "in-memory (this process only)"
 
@@ -147,7 +145,7 @@ async def _handle_turn(
 
 
 async def cmd_turn(args: argparse.Namespace) -> int:
-    runtime = _build_runtime(args)
+    runtime = make_gather_runtime_from_args(args)
     reply = await _handle_turn(runtime, args.task_id, args.message)
     if reply is None:
         return 1
@@ -164,14 +162,38 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     from versa.api.app import create_app
 
-    runtime = _build_runtime(args, mock=args.mock)
-    app = create_app(runtime)
+    session = make_gather_session(
+        db_path=args.db,
+        mock=args.mock,
+        repo_root=getattr(args, "repo", None),
+        model=getattr(args, "model", None),
+        profile=getattr(args, "profile", None),
+    )
+    app = create_app(session.service.runtime)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 
 
+def cmd_gather(args: argparse.Namespace) -> int:
+    try:
+        from versa.gather.tui.app import run_gather_app
+    except ImportError:
+        print("error: install tui extra: pip install -e '.[tui]'", file=sys.stderr)
+        return 1
+
+    session = make_gather_session(
+        db_path=args.db,
+        mock=args.mock,
+        repo_root=getattr(args, "repo", None),
+        model=getattr(args, "model", None),
+        profile=getattr(args, "profile", None),
+    )
+    run_gather_app(session, task_id=args.task_id)
+    return 0
+
+
 async def cmd_state(args: argparse.Namespace) -> int:
-    service = SessionService(_build_runtime(args, mock=True))
+    service = SessionService(make_gather_runtime_from_args(args, mock=True))
     if args.format == "md":
         export = await service.export(args.task_id, "md")
         print(export.content)
@@ -182,7 +204,7 @@ async def cmd_state(args: argparse.Namespace) -> int:
 
 
 async def cmd_export(args: argparse.Namespace) -> int:
-    service = SessionService(_build_runtime(args, mock=True))
+    service = SessionService(make_gather_runtime_from_args(args, mock=True))
     fmt = "md" if args.format == "md" else "json"
     export = await service.export(args.task_id, fmt)
     if args.output:

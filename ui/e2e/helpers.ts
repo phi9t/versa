@@ -13,6 +13,25 @@ export const REQUIREMENTS_SLOTS: Array<[string, string | string[]]> = [
   ['success_criteria', ['successful restore from any backup point']],
 ]
 
+/** Plain-language answers in slot order (scope first; objective is set by the gather server). */
+export const CONVERSATIONAL_REQUIREMENT_ANSWERS = [
+  'We are building a cross-platform CLI that backs up ~/Documents to S3.',
+  'Individual developers on macOS and Linux.',
+  'It must support incremental sync and resume interrupted uploads.',
+  'p99 latency should be under 500ms.',
+  'No PII in logs.',
+  'Successful restore from any backup point.',
+]
+
+export const EXPECTED_DOCUMENT_SECTIONS = [
+  '# Overview',
+  '# Target Users',
+  '# Functional Requirements',
+  '# Non-Functional Requirements',
+  '# Constraints',
+  '# Success Criteria',
+]
+
 export const SYNTHESIS_TRIGGER = 'Proceed with synthesis.'
 
 export async function triggerSynthesis(page: Page): Promise<void> {
@@ -75,6 +94,16 @@ export async function fillRequirementsSlots(page: Page): Promise<void> {
   await fillMissingContentSlots(page)
 }
 
+export async function gatherRequirementsConversationally(
+  page: Page,
+  answers: string[] = CONVERSATIONAL_REQUIREMENT_ANSWERS,
+): Promise<void> {
+  for (const answer of answers) {
+    await sendChatMessage(page, answer)
+  }
+  await fillMissingContentSlots(page, 5)
+}
+
 export async function fillMissingContentSlots(
   page: Page,
   maxRounds = 3,
@@ -97,4 +126,60 @@ export async function fillMissingContentSlots(
       return
     }
   }
+}
+
+export async function waitForReadyToSynthesize(page: Page): Promise<void> {
+  await page.getByTestId('tab-slots').click()
+  await expect(page.getByTestId('ready-to-synthesize-banner')).toBeVisible({
+    timeout: 120_000,
+  })
+  await expect(page.getByTestId('readiness-value')).toHaveText('Ready to synthesize')
+}
+
+export async function assertSynthesizedDeliverables(page: Page): Promise<void> {
+  await expect(page.getByTestId('readiness-value')).toHaveText('Synthesized', {
+    timeout: 300_000,
+  })
+
+  await page.getByTestId('tab-facts').click()
+  await expect(page.getByRole('heading', { name: 'scope' })).toBeVisible()
+  await expect(page.locator('.fact-value').filter({ hasText: 'cross-platform CLI' })).toBeVisible()
+
+  await page.getByTestId('tab-document').click()
+  const document = page.getByTestId('document-content')
+  await expect(document).toBeVisible()
+  for (const section of EXPECTED_DOCUMENT_SECTIONS) {
+    await expect(document).toContainText(section)
+  }
+  await expect(document).toContainText('Cross-platform CLI', { ignoreCase: true })
+  await expect(document).toContainText('S3', { ignoreCase: true })
+
+  await page.getByTestId('tab-export').click()
+  await page.getByRole('button', { name: 'Load Markdown' }).click()
+  const exportContent = page.getByTestId('export-content')
+  await expect(exportContent).toContainText('# Overview', { timeout: 10_000 })
+  for (const section of EXPECTED_DOCUMENT_SECTIONS) {
+    await expect(exportContent).toContainText(section)
+  }
+}
+
+export type GatherMode = 'conversational' | 'structured'
+
+export async function completeRequirementsGatherWorkflow(
+  page: Page,
+  taskId: string,
+  mode: GatherMode = 'conversational',
+): Promise<void> {
+  await loadSession(page, taskId)
+
+  if (mode === 'conversational') {
+    await gatherRequirementsConversationally(page)
+  } else {
+    await fillRequirementsSlots(page)
+  }
+
+  await waitForReadyToSynthesize(page)
+  await page.getByTestId('tab-chat').click()
+  await triggerSynthesis(page)
+  await assertSynthesizedDeliverables(page)
 }

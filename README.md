@@ -59,6 +59,15 @@ versa serve --mock --port 8000 --db .versa/state.db   # or omit --mock when Code
 cd ui && npm install && npm run dev
 ```
 
+Terminal TUI (same controller and snapshot model as the web UI):
+
+```bash
+pip install -e ".[dev,tui]"
+versa gather --mock --db .versa/state.db --task-id demo
+```
+
+Tabs: Chat, Facts, Slots, Questions, Document, Export. Keys: `1`–`6` switch tabs, `Ctrl+E` export markdown, `m`/`j` in Export tab.
+
 E2E tests (Playwright):
 
 ```bash
@@ -126,8 +135,9 @@ Engineering design and task tracker: [.workstreams/codex-cli-substrate/](.workst
 | `versa.verifier` | Artifact verification hooks |
 | `versa.orchestrator` | `AgentRuntime` turn loop |
 | `versa.llm.codex_cli` | `codex exec` substrate |
-| `versa.cli` | `versa doctor \| chat \| turn` |
-| `versa.store` | In-memory MVP store + Postgres DDL |
+| `versa.cli` | `versa doctor \| chat \| turn \| gather \| serve` |
+| `versa.gather` | Shared gather session factory, formatters, Textual TUI |
+| `versa.store` | In-memory MVP store + SQLite + Postgres DDL |
 
 ## Postgres
 

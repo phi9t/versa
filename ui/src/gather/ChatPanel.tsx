@@ -22,7 +22,7 @@ export default function ChatPanel({
       <div className="chat-hint">
         {readiness === 'ready_to_synthesize'
           ? 'All content slots filled. Say "Proceed with synthesis" when ready.'
-          : 'Answer one requirement at a time. Use: Use scope: your answer'}
+          : 'Answer the assistant\'s question in plain language — or use Use scope: your answer for a specific slot.'}
       </div>
       <div className="chat-messages" role="log" aria-live="polite" data-testid="chat-messages">
         {messages.length === 0 && (
