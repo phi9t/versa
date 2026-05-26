@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test'
 import {
-  SYNTHESIS_TRIGGER,
   fillRequirementsSlots,
   loadSession,
-  sendChatMessage,
+  triggerSynthesis,
 } from './helpers'
 
 test.describe('Requirements gather UI', () => {
@@ -16,13 +15,15 @@ test.describe('Requirements gather UI', () => {
   })
 
   test('gathers requirements and synthesizes document end-to-end', async ({ page }) => {
-    test.setTimeout(120_000)
+    test.setTimeout(900_000)
     await loadSession(page, 'e2e-gather-flow')
 
     await fillRequirementsSlots(page)
 
     await page.getByTestId('tab-slots').click()
-    await expect(page.getByTestId('ready-to-synthesize-banner')).toBeVisible()
+    await expect(page.getByTestId('ready-to-synthesize-banner')).toBeVisible({
+      timeout: 120_000,
+    })
     await expect(page.getByTestId('readiness-value')).toHaveText('Ready to synthesize')
 
     await page.getByTestId('tab-facts').click()
@@ -30,17 +31,17 @@ test.describe('Requirements gather UI', () => {
     await expect(page.locator('.fact-value').filter({ hasText: 'cross-platform CLI backing up' })).toBeVisible()
 
     await page.getByTestId('tab-chat').click()
-    await sendChatMessage(page, SYNTHESIS_TRIGGER)
+    await triggerSynthesis(page)
 
     await expect(page.getByTestId('readiness-value')).toHaveText('Synthesized', {
-      timeout: 30_000,
+      timeout: 300_000,
     })
 
     await page.getByTestId('tab-document').click()
     const document = page.getByTestId('document-content')
     await expect(document).toBeVisible()
     await expect(document).toContainText('# Overview')
-    await expect(document).toContainText('cross-platform CLI backing up')
+    await expect(document).toContainText('Cross-platform CLI', { ignoreCase: true })
 
     await page.getByTestId('tab-export').click()
     await page.getByRole('button', { name: 'Load Markdown' }).click()

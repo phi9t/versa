@@ -2,24 +2,32 @@
 
 Interactive workflow for building a verified requirements document with Versa.
 
-## Start the stack
+## Start the stack (prod)
 
 ```bash
-# Terminal 1 — API (MockLLM for offline demo)
 source .venv/bin/activate
 pip install -e ".[dev,api]"
-versa serve --mock --port 8000
+codex login
+versa doctor
 
-# Terminal 2 — UI
-cd ui && npm install && npm run dev
+mkdir -p .versa
+cd ui && npm install && npm run build && cd ..
+versa serve --port 8000 --db .versa/state.db
 ```
 
-Open the Vite dev URL (usually http://localhost:5173). The UI proxies `/api` to the Python server.
+Open **http://localhost:8000** (built UI served from `ui/dist`).
 
-With Codex instead of MockLLM:
+Offline demo with MockLLM:
 
 ```bash
-versa serve --port 8000
+versa serve --mock --port 8000 --db .versa/state.db
+```
+
+Dev UI iteration (optional — Vite proxies `/api`):
+
+```bash
+versa serve --port 8000 --db .versa/state.db   # terminal 1
+cd ui && npm run dev                            # terminal 2 → http://localhost:5173
 ```
 
 ## Session flow
@@ -61,6 +69,8 @@ The verified document appears in **Document**. **Export** provides deterministic
 
 ## E2E tests
 
+Requires Codex auth locally (`codex login`, `versa doctor`):
+
 ```bash
 pip install -e ".[dev,api]"
 cd ui && npm install && npm run build
@@ -68,20 +78,25 @@ npm run test:e2e:install
 npm run test:e2e
 ```
 
-Tests live in `ui/e2e/` and use Playwright against `versa serve --mock` (single server: API + static UI).
+Playwright starts the prod stack: `versa serve --db ui/e2e/.test-state.db` (real Codex). Offline fallback:
+
+```bash
+VERSA_E2E_MOCK=1 npm run test:e2e
+```
 
 ## Architecture note
 
 - **Model** — Python domain (`TaskState`, reducer, policy, verifier)
 - **Controller** — FastAPI + `SessionService` (`src/versa/api/`)
 - **View** — React app (`ui/src/`) — never mutates facts directly
+- **Store** — SQLite file via `--db` / `VERSA_DB_PATH` (default in-memory without flag)
 
 ## CLI alternatives
 
 ```bash
-versa turn --task-id demo "Use scope: demo"
-versa state --task-id demo --format json
-versa export --task-id demo --format md
+versa turn --db .versa/state.db --task-id demo "Use scope: demo"
+versa state --db .versa/state.db --task-id demo --format json
+versa export --db .versa/state.db --task-id demo --format md
 ```
 
-State is in-memory per process until Postgres persistence is wired.
+Sessions persist in the SQLite file across API restarts when `--db` is set.
