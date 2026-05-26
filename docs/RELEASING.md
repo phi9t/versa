@@ -43,4 +43,4 @@ pip install .
 
 ## CI
 
-Every push to `main` and every pull request runs `.github/workflows/ci.yml` (Python 3.11–3.13, unit tests only).
+Every push to `main` and every pull request runs `.github/workflows/ci.yml` (Python 3.12–3.14, unit tests only).

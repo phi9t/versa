@@ -22,6 +22,8 @@ ArtifactStore     untrusted drafts until verification
 
 ## Install
 
+Requires **Python 3.12+**.
+
 From a [GitHub release](https://github.com/phi9t/versa/releases) wheel:
 
 ```bash
@@ -45,6 +47,25 @@ pip install -e ".[dev]"
 versa doctor
 versa chat --task-id demo
 ```
+
+## Requirements gathering UI
+
+Interactive web UI for evidence-backed requirements collection and document synthesis:
+
+```bash
+pip install -e ".[dev,api]"
+versa serve --mock --port 8000   # or omit --mock when Codex is ready
+
+cd ui && npm install && npm run dev
+```
+
+E2E tests (Playwright):
+
+```bash
+cd ui && npm run build && npm run test:e2e:install && npm run test:e2e
+```
+
+See [docs/gather-playbook.md](docs/gather-playbook.md) for the full session workflow.
 
 `versa chat` uses an in-memory store by default: state persists for the REPL session only, not across separate CLI invocations. Use the same `--task-id` in a new process only after Postgres persistence is wired up.
 

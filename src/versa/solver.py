@@ -82,7 +82,32 @@ Do not rely on previous assistant patches.
 Do not preserve previous implementation choices unless verified or explicitly requested.
 Generate a minimal patch satisfying the active state.
 """
+    objective = find_active_fact(state, "objective")
+    if objective and objective.value == "write_requirements_doc":
+        return base + build_document_solver_suffix()
     return base
+
+
+def build_document_solver_suffix() -> str:
+    return """
+Produce a requirements specification document in Markdown.
+
+Required sections (include only if the corresponding fact exists):
+# Overview
+# Target Users
+# Functional Requirements
+# Non-Functional Requirements
+# Constraints
+# Success Criteria
+# Open Questions
+
+Rules:
+- Use only authoritative facts and verified tool results above.
+- Do not rely on previous assistant drafts.
+- Do not invent missing requirements.
+- Bullet-list array values.
+- If open assumptions remain unresolved, list them under Open Questions.
+"""
 
 
 def classify_artifact_kind(state: TaskState) -> ArtifactKind:
@@ -99,6 +124,8 @@ def classify_artifact_kind(state: TaskState) -> ArtifactKind:
         return "sql"
     if value in {"plan_task", "break_down_task"}:
         return "plan"
+    if value == "write_requirements_doc":
+        return "document"
     return "answer"
 
 

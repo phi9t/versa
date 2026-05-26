@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Conversation state compiler between raw chat transcripts and solver models"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [{ name = "Philip Yang" }]
 keywords = ["llm", "agents", "state-machine", "codex", "conversation"]
 classifiers = [
@@ -17,9 +17,9 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
@@ -41,6 +41,11 @@ dev = [
     "build>=1.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 postgres = [
     "asyncpg>=0.29",

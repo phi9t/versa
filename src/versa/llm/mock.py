@@ -67,21 +67,49 @@ class MockLLM(LLMClient):
                 }
             )
 
-        use_match = re.match(r"use\s+(\w+):\s*(.+)", user_text.strip(), re.I)
-        if use_match:
-            key, value = use_match.group(1), use_match.group(2).strip()
-            if key == "examples_or_tests" and value.startswith("["):
-                try:
-                    value = json.loads(value)
-                except json.JSONDecodeError:
-                    value = []
+        if "requirements specification document" in lower or "write_requirements_doc" in lower:
             patches.append(
                 {
                     "op": "add",
-                    "kind": FactKind.REQUIREMENT.value,
+                    "kind": FactKind.OBJECTIVE.value,
+                    "key": "objective",
+                    "value": "write_requirements_doc",
+                    "evidence_quote": user_text[:120],
+                }
+            )
+
+        use_match = re.match(r"use\s+(\w+):\s*(.+)", user_text.strip(), re.I)
+        if use_match:
+            key, value = use_match.group(1), use_match.group(2).strip()
+            if value.startswith("["):
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+            kind = FactKind.REQUIREMENT.value
+            if key in {"constraints", "non_functional_requirements"}:
+                kind = FactKind.CONSTRAINT.value
+            if key == "synthesis_requested":
+                kind = FactKind.DECISION.value
+                value = True
+            patches.append(
+                {
+                    "op": "add",
+                    "kind": kind,
                     "key": key,
                     "value": value,
                     "evidence_quote": use_match.group(0),
+                }
+            )
+
+        if "proceed with synthesis" in lower:
+            patches.append(
+                {
+                    "op": "add",
+                    "kind": FactKind.DECISION.value,
+                    "key": "synthesis_requested",
+                    "value": True,
+                    "evidence_quote": user_text.strip(),
                 }
             )
 
@@ -104,6 +132,8 @@ class MockLLM(LLMClient):
         }
 
     def _generate_solver_output(self, prompt: str) -> str:
+        if "write_requirements_doc" in prompt:
+            return self._generate_requirements_document(prompt)
         if "write_python_function" in prompt:
             fn = "solution"
             m = re.search(r"function_name = (.+)", prompt)
@@ -118,3 +148,32 @@ class MockLLM(LLMClient):
                 f"    return max(lo, min(hi, x))\n"
             )
         return "I need more information from the authoritative state."
+
+    def _generate_requirements_document(self, prompt: str) -> str:
+        sections: list[str] = ["# Overview"]
+        mapping = [
+            ("scope", "# Overview"),
+            ("target_users", "# Target Users"),
+            ("functional_requirements", "# Functional Requirements"),
+            ("non_functional_requirements", "# Non-Functional Requirements"),
+            ("constraints", "# Constraints"),
+            ("success_criteria", "# Success Criteria"),
+        ]
+        lines = []
+        for key, heading in mapping:
+            match = re.search(rf"{re.escape(key)} = (.+)", prompt)
+            if not match:
+                continue
+            raw = match.group(1).strip()
+            try:
+                value = json.loads(raw)
+            except json.JSONDecodeError:
+                value = raw.strip('"')
+            if isinstance(value, list):
+                body = "\n".join(f"- {item}" for item in value)
+            else:
+                body = str(value)
+            lines.extend([heading, "", body, ""])
+        if not lines:
+            return "# Overview\n\nscope noted"
+        return "\n".join(lines).strip()

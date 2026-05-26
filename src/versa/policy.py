@@ -12,6 +12,27 @@ class NextAction(str, Enum):
     FINALIZE_VERIFIED_ARTIFACT = "finalize_verified_artifact"
 
 
+REQUIREMENTS_DOC_SLOTS = [
+    "scope",
+    "target_users",
+    "functional_requirements",
+    "non_functional_requirements",
+    "constraints",
+    "success_criteria",
+    "synthesis_requested",
+]
+
+SLOT_LABELS: dict[str, str] = {
+    "scope": "Project scope",
+    "target_users": "Target users",
+    "functional_requirements": "Functional requirements",
+    "non_functional_requirements": "Non-functional requirements",
+    "constraints": "Constraints",
+    "success_criteria": "Success criteria",
+    "synthesis_requested": "Synthesis approved",
+}
+
+
 def infer_required_slots(state: TaskState) -> list[str]:
     objective = find_active_fact(state, "objective")
     if not objective:
@@ -34,6 +55,9 @@ def infer_required_slots(state: TaskState) -> list[str]:
             "aggregation_rules",
             "ordering",
         ]
+
+    if objective.value == "write_requirements_doc":
+        return list(REQUIREMENTS_DOC_SLOTS)
 
     return ["objective"]
 
