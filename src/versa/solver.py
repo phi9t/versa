@@ -144,7 +144,25 @@ Rules:
 - If the user confirms or rejects an assistant assumption, update that assumption.
 - If something is ambiguous, do not guess; emit a question in new_questions_for_user.
 
-Current authoritative facts:
+Task objective (required before solving):
+- Emit exactly one fact patch with key "objective" and kind "objective" when the user states or clearly implies the task type.
+- Use one of these canonical values:
+  - write_requirements_doc — gathering or documenting requirements
+  - write_python_function — writing a Python function
+  - write_sql_query — writing SQL
+  - write_patch / edit_repository — repository edits
+  - plan_task / break_down_task — planning work
+- Never invent alternate keys (for example "task" or "collect_requirements_for_new_api") for the objective.
+
+Requirements document slots (when objective is write_requirements_doc):
+- scope — what is being built
+- target_users — who will use it
+- functional_requirements — what it must do (list ok)
+- non_functional_requirements — performance, reliability, etc. (list ok)
+- constraints — limits and rules (list ok)
+- success_criteria — how success is measured (list ok)
+- synthesis_requested — true only when the user explicitly approves synthesis
+Use these exact keys when the user states or clearly answers each slot.
 {format_facts(active_facts(state))}
 
 Open assumptions:

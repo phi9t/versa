@@ -8,8 +8,11 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:e2e:full": "playwright test e2e/gather-e2e-full.spec.ts",
+    "test:e2e:full:preserve": "npm run build && VERSA_E2E_PRESERVE=1 VERSA_E2E_DB=.versa/e2e-full-codex-review.db playwright test e2e/gather-e2e-full.spec.ts",
     "test:e2e:prod": "npm run build && playwright test",
     "test:e2e:mock": "VERSA_E2E_MOCK=1 playwright test",
+    "test:e2e:mock:full": "VERSA_E2E_MOCK=1 playwright test e2e/gather-e2e-full.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install chromium"
   },

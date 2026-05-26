@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from versa.extractor_normalizer import normalize_turn_delta
 from versa.llm.base import LLMClient
 from versa.models.delta import TurnDelta
 from versa.models.state import Artifact, ArtifactStatus, OpenQuestion, TaskState, Verification
-from versa.policy import NextAction, blocking_questions, choose_next_action, missing_required_slots
+from versa.policy import NextAction, blocking_questions, choose_next_action, clarification_for_slot, missing_required_slots
 from versa.reducer import apply_delta, prune_resolved_questions
 from versa.solver import build_coding_solver_context, build_extractor_prompt, classify_artifact_kind
 from versa.store.base import Store
@@ -17,10 +18,12 @@ class AgentRuntime:
         store: Store,
         *,
         extractor_llm: LLMClient | None = None,
+        default_objective: str | None = None,
     ) -> None:
         self._extractor = extractor_llm or solver_llm
         self._solver = solver_llm
         self.store = store
+        self._default_objective = default_objective
 
     async def handle_user_turn(self, task_id: str, user_text: str) -> str:
         message_id = await self.store.append_message(
@@ -39,6 +42,7 @@ class AgentRuntime:
         )
 
         state = apply_delta(state=state, delta=delta, message_id=message_id)
+        state = self._reconcile_open_questions(state)
 
         await self.store.save_state(task_id, state)
         await self.store.append_state_event(
@@ -126,6 +130,14 @@ class AgentRuntime:
             based_on_state_version=state.version,
         )
 
+    def _reconcile_open_questions(self, state: TaskState) -> TaskState:
+        state = state.model_copy(deep=True)
+        state.open_questions = [
+            q for q in state.open_questions if q.blocks_progress and q.related_keys
+        ]
+        state.open_questions = prune_resolved_questions(state)
+        return state
+
     def _resolve_action(self, state: TaskState) -> tuple[NextAction, TaskState]:
         action = choose_next_action(state)
         if action != NextAction.ASK_CLARIFICATION:
@@ -139,7 +151,7 @@ class AgentRuntime:
         ):
             state.open_questions.append(
                 OpenQuestion(
-                    question=f"I need one missing detail before solving: {missing[0]}",
+                    question=clarification_for_slot(missing[0]),
                     related_keys=[missing[0]],
                 )
             )
@@ -153,13 +165,22 @@ class AgentRuntime:
         user_text: str,
     ) -> TurnDelta:
         prompt = build_extractor_prompt(state, user_text)
-        return await self._extractor.generate_json(prompt, schema=TurnDelta)
+        delta = await self._extractor.generate_json(prompt, schema=TurnDelta)
+        return normalize_turn_delta(
+            state,
+            delta,
+            user_text,
+            default_objective=self._default_objective,
+        )
 
     def render_clarification(self, state: TaskState) -> str:
+        missing = missing_required_slots(state)
+        if missing:
+            return clarification_for_slot(missing[0])
         blocking = blocking_questions(state)
-        if not blocking:
-            return "I need one more detail before I can proceed."
-        return blocking[0].question
+        if blocking:
+            return blocking[0].question
+        return "I need one more detail before I can proceed."
 
     def render_failed_candidate(self, verification: Verification) -> str:
         if verification.failures:

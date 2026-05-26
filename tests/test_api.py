@@ -3,13 +3,13 @@ from httpx import ASGITransport, AsyncClient
 
 from tests.fixtures import REQUIREMENTS_OPENING, REQUIREMENTS_SLOTS, SYNTHESIS_TRIGGER, is_clarification
 from versa.api.app import create_app
-from versa.api.deps import build_default_runtime
+from versa.api.deps import build_test_gather_session
 
 
 @pytest.fixture
 def app():
-    runtime = build_default_runtime()
-    return create_app(runtime)
+    service = build_test_gather_session(mock=True)
+    return create_app(service.runtime)
 
 
 @pytest.mark.asyncio

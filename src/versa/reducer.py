@@ -83,7 +83,9 @@ def apply_delta(state: TaskState, delta: TurnDelta, message_id: str) -> TaskStat
                 break
 
     for q in delta.new_questions_for_user:
-        state.open_questions.append(OpenQuestion(question=q))
+        state.open_questions.append(
+            OpenQuestion(question=q, related_keys=[], blocks_progress=False)
+        )
 
     state.open_questions = prune_resolved_questions(state)
 

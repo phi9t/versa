@@ -32,13 +32,39 @@ SLOT_LABELS: dict[str, str] = {
     "synthesis_requested": "Synthesis approved",
 }
 
+SLOT_CLARIFICATIONS: dict[str, str] = {
+    "objective": "What kind of task is this?",
+    "scope": "What are you building? Describe the project scope.",
+    "target_users": "Who are the target users?",
+    "functional_requirements": "What are the functional requirements?",
+    "non_functional_requirements": "What are the non-functional requirements (performance, reliability, etc.)?",
+    "constraints": "What constraints should the solution respect?",
+    "success_criteria": "How will you measure success?",
+    "synthesis_requested": 'Say "Proceed with synthesis" when you are ready for the requirements document.',
+    "function_name": "What should the function be named?",
+    "input_format": "What are the inputs?",
+    "output_format": "What should the function return?",
+    "edge_cases": "What edge cases should be handled?",
+    "examples_or_tests": "Do you have examples or tests to include?",
+}
+
+
+def clarification_for_slot(slot_key: str) -> str:
+    return SLOT_CLARIFICATIONS.get(
+        slot_key,
+        f"I need one more detail: {SLOT_LABELS.get(slot_key, slot_key.replace('_', ' '))}.",
+    )
+
 
 def infer_required_slots(state: TaskState) -> list[str]:
     objective = find_active_fact(state, "objective")
     if not objective:
         return ["objective"]
+    return infer_required_slots_for_objective(str(objective.value))
 
-    if objective.value == "write_python_function":
+
+def infer_required_slots_for_objective(objective_value: str) -> list[str]:
+    if objective_value == "write_python_function":
         return [
             "function_name",
             "input_format",
@@ -47,7 +73,7 @@ def infer_required_slots(state: TaskState) -> list[str]:
             "examples_or_tests",
         ]
 
-    if objective.value == "write_sql_query":
+    if objective_value == "write_sql_query":
         return [
             "schema",
             "target_columns",
@@ -56,7 +82,7 @@ def infer_required_slots(state: TaskState) -> list[str]:
             "ordering",
         ]
 
-    if objective.value == "write_requirements_doc":
+    if objective_value == "write_requirements_doc":
         return list(REQUIREMENTS_DOC_SLOTS)
 
     return ["objective"]

@@ -47,6 +47,9 @@ api = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
 ]
+tui = [
+    "textual>=1.0",
+]
 postgres = [
     "asyncpg>=0.29",
     "psycopg[binary]>=3.1",
