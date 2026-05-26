@@ -5,7 +5,7 @@ from typing import Literal
 from versa.api.dtos import ExportResponse, SessionSnapshot, TurnResponse
 from versa.api.mappers import snapshot_from_state
 from versa.export.renderer import render_requirements_markdown
-from versa.models.state import ArtifactStatus
+from versa.models.state import ArtifactStatus, TaskState
 from versa.orchestrator import AgentRuntime
 
 
@@ -20,7 +20,7 @@ class SessionService:
     async def get_snapshot(self, task_id: str) -> SessionSnapshot:
         state = await self._runtime.store.load_state(task_id)
         messages = await self._runtime.store.list_messages(task_id)
-        artifact = await self._load_active_artifact(task_id)
+        artifact = await self._load_active_artifact(task_id, state)
         return snapshot_from_state(state, messages, artifact)
 
     async def handle_turn(self, task_id: str, text: str) -> TurnResponse:
@@ -37,8 +37,9 @@ class SessionService:
             content = snapshot.model_dump_json(indent=2)
         return ExportResponse(format=fmt, content=content)
 
-    async def _load_active_artifact(self, task_id: str):
-        state = await self._runtime.store.load_state(task_id)
+    async def _load_active_artifact(self, task_id: str, state: TaskState | None = None):
+        if state is None:
+            state = await self._runtime.store.load_state(task_id)
         if not state.active_artifact_id:
             return None
         artifact = await self._runtime.store.get_artifact(task_id, state.active_artifact_id)

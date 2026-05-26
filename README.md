@@ -54,7 +54,7 @@ Interactive web UI for evidence-backed requirements collection and document synt
 
 ```bash
 pip install -e ".[dev,api]"
-versa serve --mock --port 8000   # or omit --mock when Codex is ready
+versa serve --mock --port 8000 --db .versa/state.db   # or omit --mock when Codex is ready
 
 cd ui && npm install && npm run dev
 ```
@@ -79,6 +79,7 @@ versa turn "Write a Python function named clamp that bounds a number."
 
 | Variable | Purpose |
 |----------|---------|
+| `VERSA_DB_PATH` | SQLite database path (used with `--db`) |
 | `CODEX_EXECUTABLE` | Path to `codex` binary (default: `codex`) |
 | `VERSA_CODEX_MODEL` | `-m` model override |
 | `VERSA_CODEX_PROFILE` | `-p` config profile |

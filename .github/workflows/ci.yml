@@ -83,7 +83,19 @@ jobs:
           cd ui
           npx playwright install chromium --with-deps
 
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
       - name: Run Playwright e2e tests
+        timeout-minutes: 20
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          cd ui
-          npm run test:e2e
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "$OPENAI_API_KEY" | codex login --with-api-key
+            versa doctor
+            cd ui && npm run test:e2e
+          else
+            echo "OPENAI_API_KEY not configured — running mock E2E"
+            cd ui && VERSA_E2E_MOCK=1 npm run test:e2e
+          fi

@@ -13,13 +13,21 @@ from versa.llm.codex_cli import CodexExecError, codex_is_ready
 from versa.llm.factory import make_codex_clients
 from versa.llm.mock import MockLLM
 from versa.orchestrator import AgentRuntime
-from versa.store.memory import InMemoryStore
+from versa.store.factory import make_store, resolve_db_path
 
 
 def main(argv: list[str] | None = None) -> int:
+    db_parent = argparse.ArgumentParser(add_help=False)
+    db_parent.add_argument(
+        "--db",
+        default=None,
+        help="SQLite database path (or set VERSA_DB_PATH)",
+    )
+
     parser = argparse.ArgumentParser(
         prog="versa",
         description="Versa conversation state compiler (Codex CLI substrate)",
+        parents=[db_parent],
     )
     parser.add_argument(
         "--version",
@@ -31,19 +39,19 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("doctor", help="Check Codex CLI installation and auth")
 
     for name, help_text in (("chat", "Interactive multi-turn session"), ("turn", "Handle a single user message")):
-        p = sub.add_parser(name, help=help_text)
+        p = sub.add_parser(name, help=help_text, parents=[db_parent])
         if name == "turn":
             p.add_argument("message", help="User message text")
         _add_turn_args(p)
 
-    serve_p = sub.add_parser("serve", help="Run HTTP API + optional UI static files")
+    serve_p = sub.add_parser("serve", help="Run HTTP API + optional UI static files", parents=[db_parent])
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
     serve_p.add_argument("--mock", action="store_true", help="Use MockLLM instead of Codex")
     _add_turn_args(serve_p)
 
     for name in ("state", "export"):
-        p = sub.add_parser(name, help=f"Show session {name}")
+        p = sub.add_parser(name, help=f"Show session {name}", parents=[db_parent])
         p.add_argument("--task-id", default="default", help="Task identifier")
         p.add_argument("--format", choices=["json", "md"], default="json")
         if name == "export":
@@ -80,7 +88,7 @@ def _add_turn_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _build_runtime(args: argparse.Namespace, *, mock: bool = False) -> AgentRuntime:
-    store = InMemoryStore()
+    store = make_store(resolve_db_path(args.db))
     if mock:
         llm = MockLLM()
         return AgentRuntime(llm, store, extractor_llm=llm)
@@ -92,10 +100,6 @@ def _build_runtime(args: argparse.Namespace, *, mock: bool = False) -> AgentRunt
     return AgentRuntime(solver, store, extractor_llm=extractor)
 
 
-def _build_service(args: argparse.Namespace, *, mock: bool = False) -> SessionService:
-    return SessionService(_build_runtime(args, mock=mock))
-
-
 def _print_llm_error(exc: BaseException) -> None:
     print(f"error: {exc}", file=sys.stderr)
     if isinstance(exc, CodexExecError) and exc.stderr:
@@ -104,10 +108,12 @@ def _print_llm_error(exc: BaseException) -> None:
 
 async def cmd_chat(args: argparse.Namespace) -> int:
     runtime = _build_runtime(args)
+    db = resolve_db_path(args.db)
+    persistence = f"db={db}" if db else "in-memory (this process only)"
 
     print(
-        f"Versa chat (task_id={args.task_id}). "
-        "State is in-memory for this process only. Ctrl-D or 'exit' to quit."
+        f"Versa chat (task_id={args.task_id}, {persistence}). "
+        "Ctrl-D or 'exit' to quit."
     )
     while True:
         try:
@@ -165,18 +171,18 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 async def cmd_state(args: argparse.Namespace) -> int:
-    service = _build_service(args, mock=True)
-    snapshot = await service.get_snapshot(args.task_id)
+    service = SessionService(_build_runtime(args, mock=True))
     if args.format == "md":
         export = await service.export(args.task_id, "md")
         print(export.content)
     else:
+        snapshot = await service.get_snapshot(args.task_id)
         print(json.dumps(snapshot.model_dump(mode="json"), indent=2))
     return 0
 
 
 async def cmd_export(args: argparse.Namespace) -> int:
-    service = _build_service(args, mock=True)
+    service = SessionService(_build_runtime(args, mock=True))
     fmt = "md" if args.format == "md" else "json"
     export = await service.export(args.task_id, fmt)
     if args.output:
